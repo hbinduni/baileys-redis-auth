@@ -41,7 +41,7 @@ export const useRedisAuthState = async (
           await Promise.all(
             ids.map(async (id) => {
               let value = await readData(`${type}-${id}`);
-              if (type === `${prefix}:app-state-sync-key` && value) {
+              if (type === 'app-state-sync-key' && value) {
                 value = proto.Message.AppStateSyncKeyData.fromObject(value);
               }
 
