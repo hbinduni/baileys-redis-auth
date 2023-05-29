@@ -6,9 +6,9 @@
   "license": "MIT",
   "main": "lib/index.ts",
   "types": "lib/index.d.ts",
-  "homepage": "https://github.com/WhiskeySockets/Baileys",
+  "homepage": "https://github.com/hbinduni/baileys-redis-auth",
   "repository": {
-    "url": "git@github.com:WhiskeySockets/Baileys.git"
+    "url": "https://github.com/hbinduni/baileys-redis-auth.git"
   },
   "scripts": {
     "build": "tsc",
