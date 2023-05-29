@@ -9,7 +9,6 @@ import makeWASocket, {
   makeCacheableSignalKeyStore,
   makeInMemoryStore,
   proto,
-  useMultiFileAuthState,
   WAMessageContent,
   WAMessageKey,
 } from '@whiskeysockets/baileys';
@@ -143,7 +142,7 @@ const startSock = async () => {
 
               if (msg.message?.conversation === 'ping') {
                 await sock!.readMessages([msg.key]);
-                await sendMessageWTyping({text: 'Ping!'}, msg.key.remoteJid!);
+                await sendMessageWTyping({text: 'Pong!'}, msg.key.remoteJid!);
               }
             }
           }
