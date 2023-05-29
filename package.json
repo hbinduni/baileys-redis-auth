@@ -4,7 +4,7 @@
   "description": "Redis Auth for Baileys",
   "author": "heriyanto binduni <hbinduni@gmail.com>",
   "license": "MIT",
-  "main": "lib/index.ts",
+  "main": "lib/src/index.js",
   "types": "lib/index.d.ts",
   "homepage": "https://github.com/hbinduni/baileys-redis-auth",
   "repository": {
