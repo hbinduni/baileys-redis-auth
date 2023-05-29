@@ -1,0 +1,20 @@
+{
+  "editor.formatOnSave": true,
+  "[javascript]": {
+    "editor.codeActionsOnSave": {
+      "source.fixAll.eslint": false
+    }
+  },
+  "files.autoSave": "afterDelay",
+  "workbench.editor.highlightModifiedTabs": true,
+  "editor.cursorStyle": "block",
+  "editor.cursorBlinking": "smooth",
+  "files.trimFinalNewlines": true,
+  "codemetrics.nodeconfiguration.JsxElement": 0,
+  "codemetrics.nodeconfiguration.JsxSelfClosingElement": 0,
+  "editor.fontFamily": "Fira Code",
+  "editor.fontLigatures": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": true
+  }
+}
