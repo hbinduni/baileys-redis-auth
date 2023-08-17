@@ -1,6 +1,6 @@
 {
   "name": "baileys-redis-auth",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Redis Auth for Baileys",
   "author": "heriyanto binduni <hbinduni@gmail.com>",
   "license": "MIT",
@@ -12,7 +12,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "example": "node --inspect -r ts-node/register src/Example/example.ts --no-store --no-reply"
+    "example": "ts-node -r tsconfig-paths/register src/Example/example.ts --no-store --no-reply"
   },
   "keywords": [
     "baileys",
@@ -22,18 +22,20 @@
   "devDependencies": {
     "@adiwajshing/keyed-db": "^0.2.4",
     "@hapi/boom": "^10.0.1",
-    "@types/node": "^20.2.5",
-    "eslint": "^8.41.0",
-    "eslint-config-prettier": "^8.8.0",
+    "@types/node": "^20.5.0",
+    "eslint": "^8.47.0",
+    "eslint-config-prettier": "^8.10.0",
     "eslint-plugin-prettier": "^4.2.1",
     "node-cache": "^5.1.2",
-    "pino": "^8.14.1",
-    "pino-pretty": "^10.0.0",
+    "pino": "^8.15.0",
+    "pino-pretty": "^10.2.0",
+    "qrcode-terminal": "^0.12.0",
     "ts-node": "^10.9.1",
-    "typescript": "^5.0.4"
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.1.6"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "^6.1.0",
+    "@whiskeysockets/baileys": "^6.4.0",
     "ioredis": "^5.3.2"
   }
 }

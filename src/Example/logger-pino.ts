@@ -1,6 +1,6 @@
 import pino from 'pino';
 
-import Pack from '../../package.json';
+import Pack from '#/../package.json';
 
 const pretty = {
   level: 'info',

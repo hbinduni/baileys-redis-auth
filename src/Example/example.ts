@@ -12,8 +12,8 @@ import makeWASocket, {
   WAMessageContent,
   WAMessageKey,
 } from '@whiskeysockets/baileys';
-import {logger} from './logger-pino';
-import {useRedisAuthState} from '../index';
+import {logger} from '#/Example/logger-pino';
+import {useRedisAuthState, deleteKeysWithPattern} from '#/index';
 
 logger.level = 'silent';
 
@@ -41,7 +41,7 @@ const startSock = async () => {
     password: 'd334911fd345f1170b5bfcc8e75ee72df0f114eb',
   };
 
-  const {state, saveCreds} = await useRedisAuthState(redisOptions, 'DB1');
+  const {state, saveCreds, redis} = await useRedisAuthState(redisOptions, 'DB1');
 
   // fetch latest version of WA Web
   const {version, isLatest} = await fetchLatestBaileysVersion();
@@ -95,6 +95,7 @@ const startSock = async () => {
             startSock();
           } else {
             console.log('Connection closed. You are logged out.');
+            await deleteKeysWithPattern({redis, pattern: 'DB1*'});
           }
         }
 
@@ -129,7 +130,7 @@ const startSock = async () => {
       // received a new message
       if (events['messages.upsert']) {
         const upsert = events['messages.upsert'];
-        // console.log('recv messages ', JSON.stringify(upsert, undefined, 2));
+        console.log('recv messages ', JSON.stringify(upsert, undefined, 2));
 
         if (upsert.type === 'notify') {
           for (const msg of upsert.messages) {
@@ -140,7 +141,9 @@ const startSock = async () => {
                 await sendMessageWTyping({text: 'Hello there!'}, msg.key.remoteJid!);
               }
 
-              if (msg.message?.conversation === 'ping') {
+              if (
+                (msg.message?.conversation || msg.message?.extendedTextMessage?.text) === 'ping'
+              ) {
                 await sock!.readMessages([msg.key]);
                 await sendMessageWTyping({text: 'Pong!'}, msg.key.remoteJid!);
               }

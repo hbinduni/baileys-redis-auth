@@ -14,7 +14,11 @@
     "resolveJsonModule": true,
     "forceConsistentCasingInFileNames": true,
     "declaration": true,
-    "lib": ["es2020", "esnext.array", "DOM"]
+    "lib": ["es2020", "esnext.array", "DOM"],
+    "baseUrl": ".",
+    "paths": {
+      "#/*": ["src/*"]
+    }
   },
   "include": ["./src/**/*.ts"],
   "exclude": ["node_modules", "src/__test__/*"]
