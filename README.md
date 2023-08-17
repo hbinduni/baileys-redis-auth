@@ -8,11 +8,14 @@ use redis as auth storage for baileys
 
 **example:**
 
-    const {useRedisAuthState} = require('baileys-redis-auth');
+    const {useRedisAuthState, deleteKeysWithPattern} = require('baileys-redis-auth');
 
     const  redisOptions  = {
     	host:  'localhost',
     	port:  6379,
     };
 
-    const {state, saveCreds} =  await  useRedisAuthState(redisOptions, 'DB1');
+    const {state, saveCreds, redis} =  await  useRedisAuthState(redisOptions, 'DB1');
+
+    // if you need to delete all keys in the DB1 database, you can use the following code:
+    await deleteKeysWithPattern({redis, pattern: 'DB1*'});
