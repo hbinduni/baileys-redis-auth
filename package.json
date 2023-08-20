@@ -22,7 +22,7 @@
   "devDependencies": {
     "@adiwajshing/keyed-db": "^0.2.4",
     "@hapi/boom": "^10.0.1",
-    "@types/node": "^20.5.0",
+    "@types/node": "^20.5.1",
     "eslint": "^8.47.0",
     "eslint-config-prettier": "^8.10.0",
     "eslint-plugin-prettier": "^4.2.1",
