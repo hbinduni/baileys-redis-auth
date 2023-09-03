@@ -11,7 +11,7 @@
     "url": "https://github.com/hbinduni/baileys-redis-auth.git"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "rm -Rf lib && tsc",
     "example": "ts-node -r tsconfig-paths/register src/Example/example.ts --no-store --no-reply"
   },
   "keywords": [
