@@ -11,9 +11,9 @@ import makeWASocket, {
   proto,
   WAMessageContent,
   WAMessageKey,
-  Browsers,
 } from '@whiskeysockets/baileys';
 import {logger} from '#/Example/logger-pino';
+import {useRedisAuthState, deleteKeysWithPattern} from '#/index';
 import {useRedisAuthStateWithHSet, deleteHSetKeys} from '#/index';
 
 logger.level = 'silent';
@@ -42,6 +42,7 @@ const startSock = async () => {
     password: 'd334911fd345f1170b5bfcc8e75ee72df0f114eb',
   };
 
+  // const {state, saveCreds, redis} = await useRedisAuthState(redisOptions, 'DB1');
   const {state, saveCreds, redis} = await useRedisAuthStateWithHSet(redisOptions, 'DB1');
 
   // fetch latest version of WA Web
@@ -64,7 +65,7 @@ const startSock = async () => {
     // shouldIgnoreJid: jid => isJidBroadcast(jid),
     // implement to handle retries & poll updates
     getMessage,
-    browser: ['DAISI v3', 'Desktop', version.join('.')] as [string, string, string],
+    browser: ['BINDUNI v3', 'Desktop', version.join('.')] as [string, string, string],
   };
 
   const sock = makeWASocket(waOptions);
@@ -99,11 +100,15 @@ const startSock = async () => {
             startSock();
           } else {
             console.log('Connection closed. You are logged out.');
+            // await deleteKeysWithPattern({redis, pattern: 'DB1*'});
             await deleteHSetKeys({redis, key: 'DB1'});
           }
         }
 
         console.log('connection update', update);
+        if (connection === 'open') {
+          await sendMessageWTyping({text: 'i am ok!'}, '6281911770011@s.whatsapp.net');
+        }
       }
 
       // credentials updated -- save them
