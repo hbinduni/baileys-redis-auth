@@ -1,11 +1,11 @@
 {
   "name": "baileys-redis-auth",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "Redis Auth for Baileys",
   "author": "heriyanto binduni <hbinduni@gmail.com>",
   "license": "MIT",
   "main": "lib/src/index.js",
-  "types": "lib/index.d.ts",
+  "types": "lib/src/index.d.ts",
   "homepage": "https://github.com/hbinduni/baileys-redis-auth",
   "repository": {
     "url": "https://github.com/hbinduni/baileys-redis-auth.git"

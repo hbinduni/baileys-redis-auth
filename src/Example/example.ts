@@ -155,6 +155,9 @@ const startSock = async () => {
               ) {
                 await sock!.readMessages([msg.key]);
                 await sendMessageWTyping({text: 'Pong!'}, msg.key.remoteJid!);
+                console.log('is connected: ', sock!.user);
+                const groups = await sock!.groupFetchAllParticipating();
+                console.log('groups:', JSON.stringify(groups, undefined, 2));
               }
             }
           }
