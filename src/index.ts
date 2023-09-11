@@ -25,6 +25,9 @@ export const useRedisAuthStateWithHSet = async (
   prefix: string = 'DB1'
 ): Promise<{state: AuthenticationState; saveCreds: () => Promise<void>; redis: RedisClient}> => {
   const redis = new Redis(redisOptions);
+  redis.on('connect', async () => {
+    await redis.client('SETNAME', `baileys-auth-${prefix}`);
+  });
 
   const writeData = (key: string, field: string, data: any) =>
     redis.hset(createKey(key, prefix), field, JSON.stringify(data, BufferJSON.replacer));

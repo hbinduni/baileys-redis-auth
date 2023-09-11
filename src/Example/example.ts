@@ -93,7 +93,7 @@ const startSock = async () => {
       // maybe it closed, or we received all offline message or connection opened
       if (events['connection.update']) {
         const update = events['connection.update'];
-        const {connection, lastDisconnect} = update;
+        const {connection, lastDisconnect, qr} = update;
         if (connection === 'close') {
           // reconnect if not logged out
           if ((lastDisconnect?.error as Boom)?.output?.statusCode !== DisconnectReason.loggedOut) {
@@ -108,6 +108,10 @@ const startSock = async () => {
         console.log('connection update', update);
         if (connection === 'open') {
           await sendMessageWTyping({text: 'i am ok!'}, '6281911770011@s.whatsapp.net');
+        }
+
+        if (qr) {
+          console.log('qr code =>', qr);
         }
       }
 
