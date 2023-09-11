@@ -1,6 +1,6 @@
 {
   "name": "baileys-redis-auth",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "description": "Redis Auth for Baileys",
   "author": "heriyanto binduni <hbinduni@gmail.com>",
   "license": "MIT",
@@ -12,8 +12,7 @@
   },
   "scripts": {
     "build": "rm -Rf lib && tsc",
-    "example": "ts-node -r tsconfig-paths/register src/Example/example.ts --no-store --no-reply",
-    "publish": "pnpm build && npm publish"
+    "example": "ts-node -r tsconfig-paths/register src/Example/example.ts --no-store --no-reply"
   },
   "keywords": [
     "baileys",
