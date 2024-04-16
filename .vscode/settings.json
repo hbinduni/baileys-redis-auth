@@ -2,7 +2,7 @@
   "editor.formatOnSave": true,
   "[javascript]": {
     "editor.codeActionsOnSave": {
-      "source.fixAll.eslint": false
+      "source.fixAll.eslint": "never"
     }
   },
   "files.autoSave": "afterDelay",
@@ -15,6 +15,6 @@
   "editor.fontFamily": "Fira Code",
   "editor.fontLigatures": true,
   "editor.codeActionsOnSave": {
-    "source.fixAll.eslint": true
+    "source.fixAll.eslint": "explicit"
   }
 }

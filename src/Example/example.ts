@@ -16,7 +16,9 @@ import {logger} from '#/Example/logger-pino';
 import {useRedisAuthState, deleteKeysWithPattern} from '#/index';
 import {useRedisAuthStateWithHSet, deleteHSetKeys} from '#/index';
 
-logger.level = 'silent';
+// Ensure logger is of type Logger or undefined
+// const logger = Logger.child({});
+logger.level = 'info';
 
 const useStore = !process.argv.includes('--no-store');
 const doReplies = !process.argv.includes('--no-reply');
@@ -42,8 +44,8 @@ const startSock = async () => {
     password: 'd334911fd345f1170b5bfcc8e75ee72df0f114eb',
   };
 
-  // const {state, saveCreds, redis} = await useRedisAuthState(redisOptions, 'DB1');
-  const {state, saveCreds, redis} = await useRedisAuthStateWithHSet(redisOptions, 'DB1');
+  const {state, saveCreds, redis} = await useRedisAuthState(redisOptions, 'DB1');
+  // const {state, saveCreds, redis} = await useRedisAuthStateWithHSet(redisOptions, 'DB1');
 
   // fetch latest version of WA Web
   const {version, isLatest} = await fetchLatestBaileysVersion();
