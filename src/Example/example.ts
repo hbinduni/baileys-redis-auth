@@ -7,12 +7,11 @@ import makeWASocket, {
   fetchLatestBaileysVersion,
   getAggregateVotesInPollMessage,
   makeCacheableSignalKeyStore,
-  // makeInMemoryStore, // Removed from named imports
   proto,
   WAMessageContent,
   WAMessageKey,
 } from '@whiskeysockets/baileys';
-// import makeInMemoryStore from '@whiskeysockets/baileys'; // No longer needed
+import makeInMemoryStore from '@whiskeysockets/baileys/lib/Store/makeInMemoryStore';
 import {logger} from '#/Example/logger-pino';
 import {useRedisAuthState, deleteKeysWithPattern} from '#/index';
 import {useRedisAuthStateWithHSet, deleteHSetKeys} from '#/index';
@@ -30,15 +29,16 @@ const msgRetryCounterCache = new NodeCache();
 
 // the store maintains the data of the WA connection in memory
 // can be written out to a file & read from it
-// const store = useStore ? makeInMemoryStore({logger}) : undefined;
-// store?.readFromFile('./baileys_store_multi.json');
-// save every 10s
-// setInterval(() => {
-//   store?.writeToFile('./baileys_store_multi.json');
-// }, 10_000);
+const store = useStore ? makeInMemoryStore({logger}) : undefined;
+if (useStore) {
+  store?.readFromFile('./baileys_store_multi.json');
+  // save every 10s
+  setInterval(() => {
+    store?.writeToFile('./baileys_store_multi.json');
+  }, 10_000);
+}
 
-// THIS IS A TEMPORARY IN-MEMORY STORE FOR THE EXAMPLE
-const messageStore: {[key: string]: proto.IWebMessageInfo} = {};
+let retryCounter = 0;
 
 // start a connection
 const startSock = async () => {
@@ -76,7 +76,9 @@ const startSock = async () => {
 
   const sock = makeWASocket(waOptions);
 
-  // store?.bind(sock.ev); // Removed store.bind
+  if (useStore) {
+    store?.bind(sock.ev);
+  }
 
   const sendMessageWTyping = async (msg: AnyMessageContent, jid: string) => {
     await sock.presenceSubscribe(jid);
@@ -90,163 +92,177 @@ const startSock = async () => {
     await sock.sendMessage(jid, msg);
   };
 
-  // the process function lets you process all events that just occurred
-  // efficiently in a batch
-  sock.ev.process(
-    // events is a map for event name => event data
-    async (events) => {
-      // something about the connection changed
-      // maybe it closed, or we received all offline message or connection opened
-      if (events['connection.update']) {
-        const update = events['connection.update'];
-        const {connection, lastDisconnect, qr} = update;
-        if (connection === 'close') {
-          // reconnect if not logged out
-          if ((lastDisconnect?.error as Boom)?.output?.statusCode !== DisconnectReason.loggedOut) {
-            startSock();
-          } else {
-            console.log('Connection closed. You are logged out.');
-            // await deleteKeysWithPattern({redis, pattern: 'DB1*'});
-            await deleteHSetKeys({redis, key: 'DB1'});
-          }
+  // Event handler functions defined within startSock to close over variables like sock, saveCreds, redis, etc.
+  async function handleConnectionUpdate(update: Partial<import('@whiskeysockets/baileys').ConnectionState>) {
+    const {connection, lastDisconnect, qr} = update;
+    const currentAuthState = state; // Use the state from the outer scope
+    const currentRedis = redis; // Use redis from the outer scope
+
+    if (connection === 'close') {
+      const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
+      if (statusCode !== DisconnectReason.loggedOut) {
+        retryCounter++;
+        const delayMs = Math.min(30000, (2 ** retryCounter) * 1000);
+        console.log(`Connection closed due to ${lastDisconnect?.error}, reconnecting in ${delayMs}ms. Retry attempt ${retryCounter}`);
+        await delay(delayMs);
+        startSock(); // Retry connecting
+      } else {
+        console.log('Connection closed. You are logged out.');
+        // Determine which cleanup function to call based on which auth state is being used.
+        // This example assumes 'DB1' as the prefix, as used in the example.
+        // If useRedisAuthState is active (based on which line is commented out above for state, saveCreds, redis initialization)
+        // await deleteKeysWithPattern({redis: currentRedis, pattern: 'DB1:*'});
+        // If useRedisAuthStateWithHSet is active:
+        await deleteHSetKeys({redis: currentRedis, key: 'DB1'});
+        console.log('Cleaned up auth state keys.');
+      }
+    } else if (connection === 'open') {
+      console.log('Connection opened successfully.');
+      retryCounter = 0; // Reset retry counter on successful connection
+      // Example: Send a message on successful connection
+      // await sendMessageWTyping({text: 'Hello from BINDUNI! Connection successful.'}, 'your-number@s.whatsapp.net');
+    }
+
+    if (qr) {
+      console.log('QR code received, please scan:', qr);
+    }
+    // console.log('Connection update event:', update);
+  }
+
+  async function handleCredsUpdate() {
+    await saveCreds();
+    // console.log('Credentials updated and saved.');
+  }
+
+  async function handleMessagingHistorySet(history: import('@whiskeysockets/baileys').MessageHistoryBundle) {
+    const {chats, contacts, messages, isLatest} = history;
+    console.log(
+      `Received ${chats.length} chats, ${contacts.length} contacts, ${messages.length} messages (is latest: ${isLatest}).`
+    );
+    // History is automatically handled by the store if bound.
+  }
+
+  async function handleMessagesUpsert(upsert: import('@whiskeysockets/baileys').BaileysEventMap['messages.upsert']) {
+    // console.log('Received messages upsert:', JSON.stringify(upsert, undefined, 2));
+    if (upsert.type === 'notify' || upsert.type === 'append') {
+      for (const msg of upsert.messages) {
+        // Messages are automatically stored by store.bind if store is active
+        if (!msg.key.fromMe && doReplies) {
+          console.log('Replying to message from:', msg.key.remoteJid);
+          await sock.readMessages([msg.key]);
+          await sendMessageWTyping({text: 'Hello there! This is an automated reply.'}, msg.key.remoteJid!);
         }
-
-        console.log('connection update', update);
-        if (connection === 'open') {
-          await sendMessageWTyping({text: 'i am ok!'}, '6281911770011@s.whatsapp.net');
+        // Example: Ping-pong
+        const messageText = msg.message?.conversation || msg.message?.extendedTextMessage?.text;
+        if (messageText?.toLowerCase() === 'ping') {
+          console.log('Received "ping", sending "pong".');
+          await sock.readMessages([msg.key]);
+          await sendMessageWTyping({text: 'Pong!'}, msg.key.remoteJid!);
+          // console.log('Current user info:', sock.user);
+          // const groups = await sock.groupFetchAllParticipating();
+          // console.log('Participating groups:', JSON.stringify(groups, undefined, 2));
         }
-
-        if (qr) {
-          console.log('qr code =>', qr);
-        }
-      }
-
-      // credentials updated -- save them
-      if (events['creds.update']) {
-        await saveCreds();
-      }
-
-      if (events['labels.association']) {
-        console.log(events['labels.association']);
-      }
-
-      if (events['labels.edit']) {
-        console.log(events['labels.edit']);
-      }
-
-      if (events.call) {
-        console.log('recv call event', events.call);
-      }
-
-      // history received
-      if (events['messaging-history.set']) {
-        const {chats, contacts, messages, isLatest} = events['messaging-history.set'];
-        console.log(
-          `recv ${chats.length} chats, ${contacts.length} contacts, ${messages.length} msgs (is latest: ${isLatest})`
-        );
-        // Storing messages from history
-        for (const msg of messages) {
-          if (msg.key.remoteJid && msg.key.id) {
-            const msgId = `${msg.key.remoteJid}:${msg.key.id}`;
-            messageStore[msgId] = msg;
-          }
-        }
-      }
-
-      // received a new message
-      if (events['messages.upsert']) {
-        const upsert = events['messages.upsert'];
-        console.log('recv messages ', JSON.stringify(upsert, undefined, 2));
-
-        if (upsert.type === 'notify' || upsert.type === 'append') { // Also handle 'append' for history sync parts
-          for (const msg of upsert.messages) {
-            if (msg.key.remoteJid && msg.key.id) {
-              const msgId = `${msg.key.remoteJid}:${msg.key.id}`;
-              console.log('storing message: ', msgId, msg);
-              messageStore[msgId] = msg;
-            }
-            if (!msg.key.fromMe) {
-              if (doReplies) {
-                console.log('replying to', msg.key.remoteJid);
-                await sock!.readMessages([msg.key]);
-                await sendMessageWTyping({text: 'Hello there!'}, msg.key.remoteJid!);
-              }
-
-              if (
-                (msg.message?.conversation || msg.message?.extendedTextMessage?.text) === 'ping'
-              ) {
-                await sock!.readMessages([msg.key]);
-                await sendMessageWTyping({text: 'Pong!'}, msg.key.remoteJid!);
-                console.log('is connected: ', sock!.user);
-                const groups = await sock!.groupFetchAllParticipating();
-                console.log('groups:', JSON.stringify(groups, undefined, 2));
-              }
-            }
-          }
-        }
-      }
-
-      // messages updated like status delivered, message deleted etc.
-      if (events['messages.update']) {
-        // console.log(JSON.stringify(events['messages.update'], undefined, 2));
-
-        for (const {key, update} of events['messages.update']) {
-          if (update.pollUpdates) {
-            const pollCreation = await getMessage(key);
-            if (pollCreation) {
-              console.log(
-                'got poll update, aggregation: ',
-                getAggregateVotesInPollMessage({
-                  message: pollCreation,
-                  pollUpdates: update.pollUpdates,
-                })
-              );
-            }
-          }
-        }
-      }
-
-      if (events['message-receipt.update']) {
-        // console.log(events['message-receipt.update']);
-      }
-
-      if (events['messages.reaction']) {
-        // console.log(events['messages.reaction']);
-      }
-
-      if (events['presence.update']) {
-        // console.log(events['presence.update']);
-      }
-
-      if (events['chats.update']) {
-        // console.log(events['chats.update']);
-      }
-
-      if (events['contacts.update']) {
-        for (const contact of events['contacts.update']) {
-          if (typeof contact.imgUrl !== 'undefined') {
-            const newUrl =
-              contact.imgUrl === null
-                ? null
-                : await sock!.profilePictureUrl(contact.id!).catch(() => null);
-            console.log(`contact ${contact.id} has a new profile pic: ${newUrl}`);
-          }
-        }
-      }
-
-      if (events['chats.delete']) {
-        console.log('chats deleted ', events['chats.delete']);
       }
     }
-  );
+  }
+
+  async function handleMessagesUpdate(updates: import('@whiskeysockets/baileys').BaileysEventMap['messages.update']) {
+    // console.log('Messages update event:', JSON.stringify(updates, undefined, 2));
+    for (const {key, update} of updates) {
+      if (update.pollUpdates) {
+        const pollCreation = await getMessage(key);
+        if (pollCreation) {
+          console.log(
+            'Received poll update. Aggregated votes:',
+            getAggregateVotesInPollMessage({
+              message: pollCreation,
+              pollUpdates: update.pollUpdates,
+            })
+          );
+        }
+      }
+    }
+  }
+
+  async function handleContactsUpdate(contactsUpdate: import('@whiskeysockets/baileys').BaileysEventMap['contacts.update']) {
+    for (const contact of contactsUpdate) {
+      if (typeof contact.imgUrl !== 'undefined') {
+        const newUrl =
+          contact.imgUrl === 'changed'
+            ? await sock.profilePictureUrl(contact.id!).catch(() => null)
+            : contact.imgUrl === 'removed' ? null : contact.imgUrl; // Bailey's new imgUrl states
+        console.log(`Contact ${contact.id} has a new profile pic: ${newUrl}`);
+      }
+    }
+  }
+
+  async function handleChatsUpdate(chatsUpdate: import('@whiskeysockets/baileys').BaileysEventMap['chats.update']) {
+    // console.log('Chats update event:', chatsUpdate);
+  }
+
+  async function handleChatsDelete(deletedChats: import('@whiskeysockets/baileys').BaileysEventMap['chats.delete']) {
+    console.log('Chats deleted event:', deletedChats);
+  }
+
+  async function handleLabelsAssociation(associationInfo: import('@whiskeysockets/baileys').LabelAssociation) {
+    // console.log('Labels association event:', associationInfo);
+  }
+
+  async function handleLabelsEdit(labelEditInfo: import('@whiskeysockets/baileys').Label) {
+    // console.log('Labels edit event:', labelEditInfo);
+  }
+
+  async function handleCall(callEvents: import('@whiskeysockets/baileys').Call[]) {
+    // console.log('Received call event:', callEvents);
+    // Here you might want to handle incoming calls, e.g., reject them
+    for (const call of callEvents) {
+        if (call.status === 'offer') {
+            // Example: Reject all incoming calls
+            // await sock.rejectCall(call.id, call.from);
+            // console.log(`Rejected call ${call.id} from ${call.from}`);
+        }
+    }
+  }
+
+  async function handleMessageReceiptUpdate(receipts: import('@whiskeysockets/baileys').BaileysEventMap['message-receipt.update']) {
+    // console.log('Message receipt update event:', receipts);
+  }
+
+  async function handleMessagesReaction(reactions: import('@whiskeysockets/baileys').BaileysEventMap['messages.reaction']) {
+    // console.log('Messages reaction event:', reactions);
+  }
+
+  async function handlePresenceUpdate(presence: import('@whiskeysockets/baileys').BaileysEventMap['presence.update']) {
+    // console.log('Presence update event:', presence);
+  }
+
+  // Main event processing using the new handlers
+  sock.ev.process(async (events) => {
+    if (events['connection.update']) await handleConnectionUpdate(events['connection.update']);
+    if (events['creds.update']) await handleCredsUpdate();
+    if (events['messaging-history.set']) await handleMessagingHistorySet(events['messaging-history.set']);
+    if (events['messages.upsert']) await handleMessagesUpsert(events['messages.upsert']);
+    if (events['messages.update']) await handleMessagesUpdate(events['messages.update']);
+    if (events['contacts.update']) await handleContactsUpdate(events['contacts.update']);
+    if (events['chats.update']) await handleChatsUpdate(events['chats.update']);
+    if (events['chats.delete']) await handleChatsDelete(events['chats.delete']);
+    if (events['labels.association']) await handleLabelsAssociation(events['labels.association']);
+    if (events['labels.edit']) await handleLabelsEdit(events['labels.edit']);
+    if (events.call) await handleCall(events.call); // Note: 'call' is not an array in some Baileys versions, might be events['call']
+    if (events['message-receipt.update']) await handleMessageReceiptUpdate(events['message-receipt.update']);
+    if (events['messages.reaction']) await handleMessagesReaction(events['messages.reaction']);
+    if (events['presence.update']) await handlePresenceUpdate(events['presence.update']);
+  });
 
   return sock;
 
   async function getMessage(key: WAMessageKey): Promise<WAMessageContent | undefined> {
-    // Retrieve message from our temporary in-memory store
-    const msgId = `${key.remoteJid}:${key.id}`;
-    const msg = messageStore[msgId];
-    return msg?.message || undefined;
+    if (store) {
+      const msg = await store.loadMessage(key.remoteJid!, key.id!);
+      return msg?.message || undefined;
+    }
+    // Return undefined if store is not used, as messageStore is removed
+    return undefined;
   }
 };
 

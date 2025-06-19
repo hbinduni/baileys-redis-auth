@@ -46,16 +46,21 @@ export const useRedisAuthStateWithHSet = async (
       creds,
       keys: {
         get: async (type, ids) => {
+          const hashKey = createKey('authState', prefix);
+          const fieldsArray = ids.map((id) => `${type}-${id}`);
+          const rawValues = await redis.hmget(hashKey, fieldsArray);
           const data: {[_: string]: SignalDataTypeMap[typeof type]} = {};
-          await Promise.all(
-            ids.map(async (id) => {
-              const value = await readData('authState', `${type}-${id}`);
+
+          ids.forEach((id, index) => {
+            const rawValue = rawValues[index];
+            if (rawValue) {
+              const value = JSON.parse(rawValue, BufferJSON.reviver);
               data[id] =
                 type === 'app-state-sync-key' && value
                   ? proto.Message.AppStateSyncKeyData.fromObject(value)
                   : value;
-            })
-          );
+            }
+          });
           return data;
         },
         set: async (data) => {
@@ -117,13 +122,14 @@ export const useRedisAuthState = async (
       creds,
       keys: {
         get: async (type, ids) => {
-          const promises = ids.map((id) => readData(`${type}-${id}`));
-          const values = await Promise.all(promises);
+          const keysArray = ids.map((id) => `${prefix}:${type}-${id}`);
+          const rawValues = await redis.mget(keysArray);
 
           return ids.reduce(
             (acc, id, index) => {
-              const value = values[index];
-              if (value) {
+              const rawValue = rawValues[index];
+              if (rawValue) {
+                const value = JSON.parse(rawValue, BufferJSON.reviver);
                 acc[id] =
                   type === 'app-state-sync-key'
                     ? proto.Message.AppStateSyncKeyData.fromObject(value)
