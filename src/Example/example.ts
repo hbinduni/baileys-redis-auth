@@ -7,11 +7,12 @@ import makeWASocket, {
   fetchLatestBaileysVersion,
   getAggregateVotesInPollMessage,
   makeCacheableSignalKeyStore,
-  makeInMemoryStore,
+  // makeInMemoryStore, // Removed from named imports
   proto,
   WAMessageContent,
   WAMessageKey,
 } from '@whiskeysockets/baileys';
+// import makeInMemoryStore from '@whiskeysockets/baileys'; // No longer needed
 import {logger} from '#/Example/logger-pino';
 import {useRedisAuthState, deleteKeysWithPattern} from '#/index';
 import {useRedisAuthStateWithHSet, deleteHSetKeys} from '#/index';
@@ -29,12 +30,15 @@ const msgRetryCounterCache = new NodeCache();
 
 // the store maintains the data of the WA connection in memory
 // can be written out to a file & read from it
-const store = useStore ? makeInMemoryStore({logger}) : undefined;
-store?.readFromFile('./baileys_store_multi.json');
+// const store = useStore ? makeInMemoryStore({logger}) : undefined;
+// store?.readFromFile('./baileys_store_multi.json');
 // save every 10s
-setInterval(() => {
-  store?.writeToFile('./baileys_store_multi.json');
-}, 10_000);
+// setInterval(() => {
+//   store?.writeToFile('./baileys_store_multi.json');
+// }, 10_000);
+
+// THIS IS A TEMPORARY IN-MEMORY STORE FOR THE EXAMPLE
+const messageStore: {[key: string]: proto.IWebMessageInfo} = {};
 
 // start a connection
 const startSock = async () => {
@@ -72,7 +76,7 @@ const startSock = async () => {
 
   const sock = makeWASocket(waOptions);
 
-  store?.bind(sock.ev);
+  // store?.bind(sock.ev); // Removed store.bind
 
   const sendMessageWTyping = async (msg: AnyMessageContent, jid: string) => {
     await sock.presenceSubscribe(jid);
@@ -140,6 +144,13 @@ const startSock = async () => {
         console.log(
           `recv ${chats.length} chats, ${contacts.length} contacts, ${messages.length} msgs (is latest: ${isLatest})`
         );
+        // Storing messages from history
+        for (const msg of messages) {
+          if (msg.key.remoteJid && msg.key.id) {
+            const msgId = `${msg.key.remoteJid}:${msg.key.id}`;
+            messageStore[msgId] = msg;
+          }
+        }
       }
 
       // received a new message
@@ -147,8 +158,13 @@ const startSock = async () => {
         const upsert = events['messages.upsert'];
         console.log('recv messages ', JSON.stringify(upsert, undefined, 2));
 
-        if (upsert.type === 'notify') {
+        if (upsert.type === 'notify' || upsert.type === 'append') { // Also handle 'append' for history sync parts
           for (const msg of upsert.messages) {
+            if (msg.key.remoteJid && msg.key.id) {
+              const msgId = `${msg.key.remoteJid}:${msg.key.id}`;
+              console.log('storing message: ', msgId, msg);
+              messageStore[msgId] = msg;
+            }
             if (!msg.key.fromMe) {
               if (doReplies) {
                 console.log('replying to', msg.key.remoteJid);
@@ -227,13 +243,10 @@ const startSock = async () => {
   return sock;
 
   async function getMessage(key: WAMessageKey): Promise<WAMessageContent | undefined> {
-    if (store) {
-      const msg = await store.loadMessage(key.remoteJid!, key.id!);
-      return msg?.message || undefined;
-    }
-
-    // only if store is present
-    return proto.Message.fromObject({});
+    // Retrieve message from our temporary in-memory store
+    const msgId = `${key.remoteJid}:${key.id}`;
+    const msg = messageStore[msgId];
+    return msg?.message || undefined;
   }
 };
 
