@@ -1,178 +1,224 @@
-import Redis, {RedisOptions, Redis as RedisClient} from 'ioredis';
 import {
-  AuthenticationCreds,
-  AuthenticationState,
-  SignalDataTypeMap,
-  initAuthCreds,
+  type AuthenticationCreds,
+  type AuthenticationState,
   BufferJSON,
+  type SignalDataTypeMap,
+  initAuthCreds,
   proto,
-} from '@whiskeysockets/baileys';
+} from '@whiskeysockets/baileys'
+import Redis, {type RedisOptions, type Redis as RedisClient} from 'ioredis'
 
 interface IDeleteHSetKeyOptions {
-  redis: RedisClient;
-  key: string;
+  redis: RedisClient
+  key: string
 }
 
 interface IDeleteKeysOptions {
-  redis: RedisClient;
-  pattern: string;
+  redis: RedisClient
+  pattern: string
 }
 
-const createKey = (key: string, prefix: string) => `${key}:${prefix}`;
+/**
+ * Sanitizes a string to make it safe for use as a Redis key
+ * Replaces "/" with "__" and ":" with "-"
+ */
+const fixFileName = (file: string) => file.replace(/\//g, '__').replace(/:/g, '-')
 
+const createKey = (key: string, prefix: string) => `${prefix}:${key}`
+
+/**
+ * Redis-based authentication state storage using Hash (HSET) - Recommended
+ * Stores all authentication data in a single Redis Hash per prefix
+ * More efficient than key-value approach for Redis memory and operations
+ */
 export const useRedisAuthStateWithHSet = async (
   redisOptions: RedisOptions,
-  prefix: string = 'DB1'
+  prefix = 'session'
 ): Promise<{state: AuthenticationState; saveCreds: () => Promise<void>; redis: RedisClient}> => {
-  const redis = new Redis(redisOptions);
+  const redis = new Redis(redisOptions)
+
   redis.on('connect', async () => {
-    const redisClientName = `baileys-auth-${prefix}`;
-    await redis.client('SETNAME', redisClientName);
-    console.log(`Redis client name set to ${redisClientName}`);
-  });
+    const redisClientName = `baileys-auth-${prefix}`
+    await redis.client('SETNAME', redisClientName)
+    console.log(`Redis client name set to ${redisClientName}`)
+  })
 
-  const writeData = (key: string, field: string, data: any) =>
-    redis.hset(createKey(key, prefix), field, JSON.stringify(data, BufferJSON.replacer));
+  const writeData = async (key: string, data: unknown): Promise<void> => {
+    await redis.hset(createKey('auth', prefix), key, JSON.stringify(data, BufferJSON.replacer))
+  }
 
-  const readData = async (key: string, field: string) => {
-    const data = await redis.hget(createKey(key, prefix), field);
-    return data ? JSON.parse(data, BufferJSON.reviver) : null;
-  };
+  const readData = async (key: string): Promise<unknown> => {
+    const data = await redis.hget(createKey('auth', prefix), key)
+    return data ? JSON.parse(data, BufferJSON.reviver) : null
+  }
 
-  const creds: AuthenticationCreds = (await readData('authState', 'creds')) || initAuthCreds();
+  const removeData = async (key: string): Promise<void> => {
+    await redis.hdel(createKey('auth', prefix), key)
+  }
+
+  const creds: AuthenticationCreds = ((await readData('creds')) as AuthenticationCreds) || initAuthCreds()
 
   return {
     state: {
       creds,
       keys: {
         get: async (type, ids) => {
-          const hashKey = createKey('authState', prefix);
-          const fieldsArray = ids.map((id) => `${type}-${id}`);
-          const rawValues = await redis.hmget(hashKey, fieldsArray);
-          const data: {[_: string]: SignalDataTypeMap[typeof type]} = {};
+          const data: Record<string, SignalDataTypeMap[typeof type]> = {}
 
-          ids.forEach((id, index) => {
-            const rawValue = rawValues[index];
-            if (rawValue) {
-              const value = JSON.parse(rawValue, BufferJSON.reviver);
-              data[id] =
-                type === 'app-state-sync-key' && value
-                  ? proto.Message.AppStateSyncKeyData.fromObject(value)
-                  : value;
-            }
-          });
-          return data;
+          await Promise.all(
+            ids.map(async (id) => {
+              const key = `${type}-${fixFileName(id)}`
+              const value = await readData(key)
+
+              if (value) {
+                data[id] = (
+                  type === 'app-state-sync-key' ? proto.Message.AppStateSyncKeyData.fromObject(value as object) : value
+                ) as SignalDataTypeMap[typeof type]
+              }
+            })
+          )
+
+          return data
         },
         set: async (data) => {
-          const pipeline = redis.pipeline();
+          const promises: Promise<void>[] = []
+
           for (const category in data) {
             for (const id in data[category]) {
-              const field = `${category}-${id}`;
-              const value = data[category][id];
+              const value = data[category][id]
+              const key = `${category}-${fixFileName(id)}`
+
               if (value) {
-                pipeline.hset(
-                  createKey('authState', prefix),
-                  field,
-                  JSON.stringify(value, BufferJSON.replacer)
-                );
+                promises.push(writeData(key, value))
               } else {
-                pipeline.hdel(createKey('authState', prefix), field);
+                promises.push(removeData(key))
               }
             }
           }
-          await pipeline.exec();
+
+          await Promise.all(promises)
         },
       },
     },
     saveCreds: async () => {
-      await writeData('authState', 'creds', creds);
+      await writeData('creds', creds)
     },
     redis,
-  };
-};
+  }
+}
 
+/**
+ * Deletes all authentication data for a specific prefix using Hash (HSET)
+ */
 export const deleteHSetKeys = async ({redis, key}: IDeleteHSetKeyOptions): Promise<void> => {
   try {
-    console.log('removing authState keys', key);
-    await redis.del(createKey('authState', key));
+    console.log('Removing auth state keys for prefix:', key)
+    await redis.del(createKey('auth', key))
   } catch (err) {
-    console.log('Error deleting keys:', err.message);
+    const error = err as Error
+    console.log('Error deleting keys:', error.message)
   }
-};
+}
 
+/**
+ * Redis-based authentication state storage using key-value pairs
+ * Stores each piece of authentication data as a separate Redis key
+ * Less efficient than Hash approach but more compatible with existing systems
+ */
 export const useRedisAuthState = async (
   redisOptions: RedisOptions,
-  prefix: string = 'DB1'
+  prefix = 'session'
 ): Promise<{state: AuthenticationState; saveCreds: () => Promise<void>; redis: RedisClient}> => {
-  const redis = new Redis(redisOptions);
+  const redis = new Redis(redisOptions)
 
-  const writeData = async (data: any, key: string): Promise<void> => {
-    await redis.set(`${prefix}:${key}`, JSON.stringify(data, BufferJSON.replacer));
-  };
+  redis.on('connect', async () => {
+    const redisClientName = `baileys-auth-${prefix}`
+    await redis.client('SETNAME', redisClientName)
+    console.log(`Redis client name set to ${redisClientName}`)
+  })
 
-  const readData = async (key: string): Promise<any> => {
-    const data = await redis.get(`${prefix}:${key}`);
-    return data ? JSON.parse(data, BufferJSON.reviver) : null;
-  };
+  const writeData = async (key: string, data: unknown): Promise<void> => {
+    await redis.set(createKey(key, prefix), JSON.stringify(data, BufferJSON.replacer))
+  }
 
-  const creds: AuthenticationCreds = (await readData('creds')) ?? initAuthCreds();
+  const readData = async (key: string): Promise<unknown> => {
+    const data = await redis.get(createKey(key, prefix))
+    return data ? JSON.parse(data, BufferJSON.reviver) : null
+  }
+
+  const removeData = async (key: string): Promise<void> => {
+    await redis.del(createKey(key, prefix))
+  }
+
+  const creds: AuthenticationCreds = ((await readData('creds')) as AuthenticationCreds) ?? initAuthCreds()
 
   return {
     state: {
       creds,
       keys: {
         get: async (type, ids) => {
-          const keysArray = ids.map((id) => `${prefix}:${type}-${id}`);
-          const rawValues = await redis.mget(keysArray);
+          const data: Record<string, SignalDataTypeMap[typeof type]> = {}
 
-          return ids.reduce(
-            (acc, id, index) => {
-              const rawValue = rawValues[index];
-              if (rawValue) {
-                const value = JSON.parse(rawValue, BufferJSON.reviver);
-                acc[id] =
-                  type === 'app-state-sync-key'
-                    ? proto.Message.AppStateSyncKeyData.fromObject(value)
-                    : value;
+          await Promise.all(
+            ids.map(async (id) => {
+              const key = `${type}-${fixFileName(id)}`
+              const value = await readData(key)
+
+              if (value) {
+                data[id] = (
+                  type === 'app-state-sync-key' ? proto.Message.AppStateSyncKeyData.fromObject(value as object) : value
+                ) as SignalDataTypeMap[typeof type]
               }
-              return acc;
-            },
-            {} as {[_: string]: SignalDataTypeMap[typeof type]}
-          );
+            })
+          )
+
+          return data
         },
         set: async (data) => {
-          const pipeline = redis.pipeline();
+          const promises: Promise<void>[] = []
+
           for (const category in data) {
             for (const id in data[category]) {
-              const value = data[category][id];
-              const key = `${prefix}:${category}-${id}`;
-              value
-                ? pipeline.set(key, JSON.stringify(value, BufferJSON.replacer))
-                : pipeline.del(key);
+              const value = data[category][id]
+              const key = `${category}-${fixFileName(id)}`
+
+              if (value) {
+                promises.push(writeData(key, value))
+              } else {
+                promises.push(removeData(key))
+              }
             }
           }
-          await pipeline.exec();
+
+          await Promise.all(promises)
         },
       },
     },
     saveCreds: async () => {
-      await writeData(creds, 'creds');
+      await writeData('creds', creds)
     },
     redis,
-  };
-};
+  }
+}
 
-export const deleteKeysWithPattern = async ({
-  redis,
-  pattern,
-}: IDeleteKeysOptions): Promise<void> => {
-  let cursor = 0;
-  do {
-    const [nextCursor, keys] = await redis.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
-    cursor = parseInt(nextCursor, 10);
-    if (keys.length > 0) {
-      await redis.unlink(...keys);
-      console.log(`Deleted keys: ${keys}`);
-    }
-  } while (cursor !== 0);
-};
+/**
+ * Deletes all authentication keys matching a pattern using key-value approach
+ * Uses SCAN to safely iterate through keys without blocking Redis
+ */
+export const deleteKeysWithPattern = async ({redis, pattern}: IDeleteKeysOptions): Promise<void> => {
+  try {
+    console.log('Removing auth state keys matching pattern:', pattern)
+    let cursor = 0
+    do {
+      const [nextCursor, keys] = await redis.scan(cursor, 'MATCH', pattern, 'COUNT', 100)
+      cursor = Number.parseInt(nextCursor, 10)
+      if (keys.length > 0) {
+        await redis.unlink(...keys)
+        console.log(`Deleted keys: ${keys.join(', ')}`)
+      }
+    } while (cursor !== 0)
+  } catch (err) {
+    const error = err as Error
+    console.log('Error deleting keys:', error.message)
+  }
+}

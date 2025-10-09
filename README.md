@@ -173,6 +173,43 @@ import Redis, { RedisOptions } from 'ioredis'; // Or use the instance from useRe
     *   `redis`: An active `ioredis` client instance.
     *   `pattern`: The key pattern to delete (e.g., `'baileys_session_2:*'`). This should align with the `prefix` used in `useRedisAuthState`, followed by `:*` to match all related keys.
 
+## Logout and Session Cleanup
+
+**Important**: When you call `sock.logout()`, Baileys does NOT automatically clear your Redis session. You must manually handle session cleanup in your `connection.update` event handler.
+
+### Proper Logout Implementation
+
+```typescript
+import {deleteKeysWithPattern, useRedisAuthState} from 'baileys-redis-auth'
+import makeWASocket, {DisconnectReason} from '@whiskeysockets/baileys'
+import type {Boom} from '@hapi/boom'
+
+const sessionPrefix = 'my-session'
+const {state, saveCreds, redis} = await useRedisAuthState(redisOptions, sessionPrefix)
+
+const sock = makeWASocket({auth: state})
+
+// Handle connection updates
+sock.ev.on('connection.update', async (update) => {
+  const {connection, lastDisconnect} = update
+
+  if (connection === 'close') {
+    const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode
+
+    if (statusCode === DisconnectReason.loggedOut) {
+      // Clear Redis session on logout
+      await deleteKeysWithPattern({redis, pattern: `${sessionPrefix}:*`})
+      console.log('Session cleared')
+    }
+  }
+})
+
+// When you want to logout
+await sock.logout() // Session cleanup happens in connection.update handler
+```
+
+For detailed logout implementation guide, see [LOGOUT_GUIDE.md](./LOGOUT_GUIDE.md).
+
 ## Running the Example
 
 This project includes an example script to demonstrate the usage of `baileys-redis-auth`. To run it:

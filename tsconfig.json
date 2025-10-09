@@ -17,9 +17,10 @@
     "lib": ["es2020", "esnext.array", "DOM"],
     "baseUrl": ".",
     "paths": {
-      "#/*": ["src/*"]
+      "#/*": ["src/*"],
+      "@/*": ["src/*"]
     }
   },
   "include": ["./src/**/*.ts"],
-  "exclude": ["node_modules", "src/__test__/*"]
+  "exclude": ["node_modules", "example", "lib"]
 }

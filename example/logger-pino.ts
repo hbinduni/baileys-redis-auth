@@ -1,6 +1,5 @@
-import pino from 'pino';
-
-import Pack from '#/../package.json';
+import Pack from '@/../package.json'
+import pino from 'pino'
 
 const pretty = {
   level: 'info',
@@ -10,11 +9,11 @@ const pretty = {
     translateTime: 'SYS:isoDateTime',
     ignore: 'pid,hostname',
   },
-};
+}
 
 const transports = pino.transport({
   targets: [pretty],
-});
+})
 
 const options = {
   level: process.env.PINO_LOG_LEVEL || 'info',
@@ -26,13 +25,13 @@ const options = {
         app: Pack.name,
         v: Pack.version,
         node_version: process.version,
-      };
+      }
     },
     level: (label, number) => {
-      return {level: number, label: label.toUpperCase()};
+      return {level: number, label: label.toUpperCase()}
     },
   },
   timestamp: pino.stdTimeFunctions.isoTime,
-};
+}
 
-export const logger = pino(options, transports);
+export const logger = pino(options, transports)
