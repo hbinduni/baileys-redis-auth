@@ -1,6 +1,6 @@
 {
   "name": "baileys-redis-auth",
-  "version": "1.0.14",
+  "version": "1.1.0",
   "description": "Redis Auth for Baileys",
   "author": "heriyanto binduni <hbinduni@gmail.com>",
   "license": "MIT",
