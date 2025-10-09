@@ -11,11 +11,13 @@ import Redis, {type RedisOptions, type Redis as RedisClient} from 'ioredis'
 interface IDeleteHSetKeyOptions {
   redis: RedisClient
   key: string
+  logger?: (message: string, ...args: unknown[]) => void
 }
 
 interface IDeleteKeysOptions {
   redis: RedisClient
   pattern: string
+  logger?: (message: string, ...args: unknown[]) => void
 }
 
 /**
@@ -33,14 +35,15 @@ const createKey = (key: string, prefix: string) => `${prefix}:${key}`
  */
 export const useRedisAuthStateWithHSet = async (
   redisOptions: RedisOptions,
-  prefix = 'session'
+  prefix = 'session',
+  logger?: (message: string, ...args: unknown[]) => void
 ): Promise<{state: AuthenticationState; saveCreds: () => Promise<void>; redis: RedisClient}> => {
   const redis = new Redis(redisOptions)
 
   redis.on('connect', async () => {
     const redisClientName = `baileys-auth-${prefix}`
     await redis.client('SETNAME', redisClientName)
-    console.log(`Redis client name set to ${redisClientName}`)
+    logger?.(`Redis client name set to ${redisClientName}`)
   })
 
   const writeData = async (key: string, data: unknown): Promise<void> => {
@@ -110,13 +113,14 @@ export const useRedisAuthStateWithHSet = async (
 /**
  * Deletes all authentication data for a specific prefix using Hash (HSET)
  */
-export const deleteHSetKeys = async ({redis, key}: IDeleteHSetKeyOptions): Promise<void> => {
+export const deleteHSetKeys = async ({redis, key, logger}: IDeleteHSetKeyOptions): Promise<void> => {
   try {
-    console.log('Removing auth state keys for prefix:', key)
+    logger?.('Removing auth state keys for prefix:', key)
     await redis.del(createKey('auth', key))
   } catch (err) {
     const error = err as Error
-    console.log('Error deleting keys:', error.message)
+    logger?.('Error deleting keys:', error.message)
+    throw error
   }
 }
 
@@ -127,14 +131,15 @@ export const deleteHSetKeys = async ({redis, key}: IDeleteHSetKeyOptions): Promi
  */
 export const useRedisAuthState = async (
   redisOptions: RedisOptions,
-  prefix = 'session'
+  prefix = 'session',
+  logger?: (message: string, ...args: unknown[]) => void
 ): Promise<{state: AuthenticationState; saveCreds: () => Promise<void>; redis: RedisClient}> => {
   const redis = new Redis(redisOptions)
 
   redis.on('connect', async () => {
     const redisClientName = `baileys-auth-${prefix}`
     await redis.client('SETNAME', redisClientName)
-    console.log(`Redis client name set to ${redisClientName}`)
+    logger?.(`Redis client name set to ${redisClientName}`)
   })
 
   const writeData = async (key: string, data: unknown): Promise<void> => {
@@ -205,20 +210,21 @@ export const useRedisAuthState = async (
  * Deletes all authentication keys matching a pattern using key-value approach
  * Uses SCAN to safely iterate through keys without blocking Redis
  */
-export const deleteKeysWithPattern = async ({redis, pattern}: IDeleteKeysOptions): Promise<void> => {
+export const deleteKeysWithPattern = async ({redis, pattern, logger}: IDeleteKeysOptions): Promise<void> => {
   try {
-    console.log('Removing auth state keys matching pattern:', pattern)
+    logger?.('Removing auth state keys matching pattern:', pattern)
     let cursor = 0
     do {
       const [nextCursor, keys] = await redis.scan(cursor, 'MATCH', pattern, 'COUNT', 100)
       cursor = Number.parseInt(nextCursor, 10)
       if (keys.length > 0) {
         await redis.unlink(...keys)
-        console.log(`Deleted keys: ${keys.join(', ')}`)
+        logger?.(`Deleted keys: ${keys.join(', ')}`)
       }
     } while (cursor !== 0)
   } catch (err) {
     const error = err as Error
-    console.log('Error deleting keys:', error.message)
+    logger?.('Error deleting keys:', error.message)
+    throw error
   }
 }

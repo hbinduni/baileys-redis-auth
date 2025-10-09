@@ -124,7 +124,7 @@ async function startSock() {
 
   const sessionPrefix = process.env.SESSION_PREFIX || 'session'
 
-  const {state, saveCreds, redis} = await useRedisAuthState(redisOptions, sessionPrefix)
+  const {state, saveCreds, redis} = await useRedisAuthState(redisOptions, sessionPrefix, console.log)
 
   // Fetch latest version of WA Web
   const {version, isLatest} = await fetchLatestBaileysVersion()
@@ -165,7 +165,7 @@ async function startSock() {
       } else {
         // Intentional logout - clean up session
         console.log('🔓 Cleaning up session...')
-        await deleteKeysWithPattern({redis, pattern: `${sessionPrefix}:*`})
+        await deleteKeysWithPattern({redis, pattern: `${sessionPrefix}:*`, logger: console.log})
         console.log('✅ Session cleaned up successfully.')
         isAuthenticated = false
         rl.prompt()

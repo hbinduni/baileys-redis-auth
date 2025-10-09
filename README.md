@@ -198,7 +198,11 @@ sock.ev.on('connection.update', async (update) => {
 
     if (statusCode === DisconnectReason.loggedOut) {
       // Clear Redis session on logout
-      await deleteKeysWithPattern({redis, pattern: `${sessionPrefix}:*`})
+      await deleteKeysWithPattern({
+        redis,
+        pattern: `${sessionPrefix}:*`,
+        logger: console.log  // Optional: pass logger for debugging
+      })
       console.log('Session cleared')
     }
   }

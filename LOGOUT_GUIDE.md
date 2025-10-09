@@ -36,7 +36,8 @@ sock.ev.on('connection.update', async (update) => {
       // User logged out - clear the session
       await deleteKeysWithPattern({
         redis,
-        pattern: 'my-session:*'  // Must match your session prefix
+        pattern: 'my-session:*',  // Must match your session prefix
+        logger: console.log        // Optional: pass logger for debugging
       })
       console.log('Session cleared after logout')
     }
@@ -73,7 +74,11 @@ sock.ev.on('connection.update', async (update) => {
 
     if (statusCode === DisconnectReason.loggedOut) {
       // Clear HSet-based session
-      await deleteHSetKeys({redis, key: 'my-session'})
+      await deleteHSetKeys({
+        redis,
+        key: 'my-session',
+        logger: console.log  // Optional: pass logger for debugging
+      })
       console.log('Session cleared after logout')
     }
   }
@@ -114,7 +119,8 @@ async function startWhatsApp() {
         // THIS IS CRITICAL: Clear Redis session on logout
         await deleteKeysWithPattern({
           redis,
-          pattern: `${sessionPrefix}:*`
+          pattern: `${sessionPrefix}:*`,
+          logger: console.log  // Optional: pass logger for debugging
         })
         console.log('✅ Session cleared successfully')
       } else {
@@ -182,7 +188,8 @@ await sock.logout() // Cleanup happens automatically
 ```typescript
 deleteKeysWithPattern({
   redis: RedisClient,    // Redis client from useRedisAuthState
-  pattern: string        // Pattern to match (e.g., 'session:*')
+  pattern: string,       // Pattern to match (e.g., 'session:*')
+  logger?: (message: string, ...args: unknown[]) => void  // Optional logger function
 }): Promise<void>
 ```
 
@@ -191,7 +198,8 @@ deleteKeysWithPattern({
 ```typescript
 deleteHSetKeys({
   redis: RedisClient,    // Redis client from useRedisAuthStateWithHSet
-  key: string           // Session prefix (e.g., 'session')
+  key: string,          // Session prefix (e.g., 'session')
+  logger?: (message: string, ...args: unknown[]) => void  // Optional logger function
 }): Promise<void>
 ```
 

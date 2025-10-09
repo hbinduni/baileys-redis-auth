@@ -1,5 +1,5 @@
-import Pack from '@/../package.json'
 import pino from 'pino'
+import Pack from '../package.json'
 
 const pretty = {
   level: 'info',
