@@ -27,6 +27,7 @@ This is the recommended method for storing Baileys authentication data in Redis.
 **Parameters:**
 *   `redisOptions`: An object containing your Redis server connection details (e.g., `host`, `port`, `password`). This is passed directly to the `ioredis` constructor.
 *   `prefix`: A string used to namespace your Baileys session data in Redis. For example, if your `prefix` is `'DB1'`, all data for this session will be stored under a Redis key like `authState:DB1`. This allows you to manage multiple independent Baileys sessions in the same Redis database.
+*   `logger` (optional): A function `(message: string, ...args: unknown[]) => void` for logging Redis connection events. Pass `console.log` or your custom logger function.
 
 ```typescript
 import {useRedisAuthStateWithHSet, deleteHSetKeys} from 'baileys-redis-auth';
@@ -51,7 +52,11 @@ async function initializeBaileysWithHSet() {
     // and redisOptions the second, though the current library signature seems to expect options first.
     // For simplicity, we'll let the function create its own connection.
 
-    const {state, saveCreds, redis: authRedisInstance} = await useRedisAuthStateWithHSet(redisOptions, sessionPrefix);
+    const {state, saveCreds, redis: authRedisInstance} = await useRedisAuthStateWithHSet(
+        redisOptions,
+        sessionPrefix,
+        console.log  // Optional: pass logger for Redis connection events
+    );
 
     // 'state' will be used to initialize Baileys
     // 'saveCreds' is a function to periodically save the authentication state
@@ -96,6 +101,7 @@ import Redis, { RedisOptions } from 'ioredis'; // Or use the instance from useRe
 *   `options`: An object with the following properties:
     *   `redis`: An active `ioredis` client instance.
     *   `key`: The session `prefix` string (e.g., `'baileys_session_1'`) whose data needs to be deleted. This corresponds to the `prefix` you used with `useRedisAuthStateWithHSet`.
+    *   `logger` (optional): A function for logging deletion operations.
 
 ### Using `useRedisAuthState`
 
@@ -104,6 +110,7 @@ This method stores each piece of authentication data as a separate key-value pai
 **Parameters:**
 *   `redisOptions`: An object containing your Redis server connection details (e.g., `host`, `port`, `password`). This is passed directly to the `ioredis` constructor.
 *   `prefix`: A string used to prefix all Redis keys for this Baileys session. For example, if your `prefix` is `'DB1'`, keys will be stored like `DB1:creds`, `DB1:pre-key-1`, etc.
+*   `logger` (optional): A function `(message: string, ...args: unknown[]) => void` for logging Redis connection events. Pass `console.log` or your custom logger function.
 
 ```typescript
 import {useRedisAuthState, deleteKeysWithPattern} from 'baileys-redis-auth';
@@ -125,7 +132,11 @@ async function initializeBaileysSimple() {
     // redis.on('connect', () => console.log('Connected to Redis for simple method!'));
     // As with HSet, useRedisAuthState creates its own Redis instance.
 
-    const {state, saveCreds, redis: authRedisInstance} = await useRedisAuthState(redisOptions, sessionPrefix);
+    const {state, saveCreds, redis: authRedisInstance} = await useRedisAuthState(
+        redisOptions,
+        sessionPrefix,
+        console.log  // Optional: pass logger for Redis connection events
+    );
 
     // 'state' will be used to initialize Baileys
     // 'saveCreds' is a function to periodically save the authentication state
@@ -172,6 +183,7 @@ import Redis, { RedisOptions } from 'ioredis'; // Or use the instance from useRe
 *   `options`: An object with the following properties:
     *   `redis`: An active `ioredis` client instance.
     *   `pattern`: The key pattern to delete (e.g., `'baileys_session_2:*'`). This should align with the `prefix` used in `useRedisAuthState`, followed by `:*` to match all related keys.
+    *   `logger` (optional): A function for logging deletion operations.
 
 ## Logout and Session Cleanup
 
@@ -185,7 +197,7 @@ import makeWASocket, {DisconnectReason} from '@whiskeysockets/baileys'
 import type {Boom} from '@hapi/boom'
 
 const sessionPrefix = 'my-session'
-const {state, saveCreds, redis} = await useRedisAuthState(redisOptions, sessionPrefix)
+const {state, saveCreds, redis} = await useRedisAuthState(redisOptions, sessionPrefix, console.log)
 
 const sock = makeWASocket({auth: state})
 
@@ -235,14 +247,28 @@ This project includes an example script to demonstrate the usage of `baileys-red
 
 3.  **Ensure you have a Redis server running** and accessible on `localhost:6379` (or update the example script with your Redis configuration).
 
-4.  **Run the example script:**
+4.  **Configure environment variables:**
+    ```bash
+    cp .env.example .env
+    # Edit .env with your Redis configuration
+    ```
+
+5.  **Run the example script:**
     ```bash
     npm run example
     # or
     # pnpm example
+    # or
+    # bun run example
     ```
-    This command executes `ts-node -r tsconfig-paths/register src/Example/example.ts --no-store --no-reply`.
-    The example will guide you through connecting to WhatsApp using Baileys with Redis for authentication storage. You might need to scan a QR code from your terminal.
+    This command executes `ts-node -r tsconfig-paths/register example/example.ts`.
+    The example will guide you through connecting to WhatsApp using Baileys with Redis for authentication storage. You'll see a QR code in your terminal to scan with WhatsApp.
+
+    **Interactive Commands:**
+    - `send <phone> <message>` - Send a WhatsApp message
+    - `logout` - Logout and clear session
+    - `help` - Show available commands
+    - `exit` - Exit the application
 
 ## Contributing
 
