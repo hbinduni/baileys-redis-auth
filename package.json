@@ -8,7 +8,7 @@
   "types": "lib/index.d.ts",
   "homepage": "https://github.com/hbinduni/baileys-redis-auth",
   "repository": {
-    "url": "https://github.com/hbinduni/baileys-redis-auth.git"
+    "url": "git+https://github.com/hbinduni/baileys-redis-auth.git"
   },
   "scripts": {
     "clean": "rm -rf lib",
