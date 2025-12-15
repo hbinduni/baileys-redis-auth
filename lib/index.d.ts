@@ -1,5 +1,6 @@
 import { type AuthenticationState } from 'baileys';
-import { type RedisOptions, type Redis as RedisClient } from 'ioredis';
+import { Redis, type RedisOptions } from 'ioredis';
+type RedisClient = Redis;
 /**
  * Options for deleting Hash-based authentication state
  */

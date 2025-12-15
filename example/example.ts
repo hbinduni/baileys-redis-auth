@@ -1,16 +1,16 @@
 import * as readline from 'node:readline'
-import {deleteKeysWithPattern, useRedisAuthState} from '@/index'
 import type {Boom} from '@hapi/boom'
 import makeWASocket, {
   DisconnectReason,
   fetchLatestBaileysVersion,
   makeCacheableSignalKeyStore,
   type WASocket,
-} from '@whiskeysockets/baileys'
+} from 'baileys'
 import dotenv from 'dotenv'
 import NodeCache from 'node-cache'
 import qrcodeTerminal from 'qrcode-terminal'
-import {logger} from './logger-pino'
+import {deleteKeysWithPattern, useRedisAuthState} from '../src/index.js'
+import {logger} from './logger-pino.js'
 
 // Load environment variables from .env file
 dotenv.config()

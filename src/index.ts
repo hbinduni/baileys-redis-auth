@@ -4,9 +4,11 @@ import {
   BufferJSON,
   type SignalDataTypeMap,
   initAuthCreds,
-  proto
+  proto,
 } from 'baileys'
-import Redis, { type RedisOptions, type Redis as RedisClient } from 'ioredis'
+import {Redis, type RedisOptions} from 'ioredis'
+
+type RedisClient = Redis
 
 /**
  * Options for deleting Hash-based authentication state
@@ -54,8 +56,7 @@ interface IListSessionsOptions {
  *
  * @internal
  */
-const fixFileName = (file: string) =>
-  file.replace(/\//g, '__').replace(/:/g, '-')
+const fixFileName = (file: string) => file.replace(/\//g, '__').replace(/:/g, '-')
 
 /**
  * Creates a namespaced Redis key by combining sessionId and key
@@ -116,11 +117,7 @@ export const useRedisAuthStateWithHSet = async (
   })
 
   const writeData = async (key: string, data: unknown): Promise<void> => {
-    await redis.hset(
-      createKey('auth', sessionId),
-      key,
-      JSON.stringify(data, BufferJSON.replacer)
-    )
+    await redis.hset(createKey('auth', sessionId), key, JSON.stringify(data, BufferJSON.replacer))
   }
 
   const readData = async (key: string): Promise<unknown> => {
@@ -132,8 +129,7 @@ export const useRedisAuthStateWithHSet = async (
     await redis.hdel(createKey('auth', sessionId), key)
   }
 
-  const creds: AuthenticationCreds =
-    ((await readData('creds')) as AuthenticationCreds) || initAuthCreds()
+  const creds: AuthenticationCreds = ((await readData('creds')) as AuthenticationCreds) || initAuthCreds()
 
   return {
     state: {
@@ -149,11 +145,7 @@ export const useRedisAuthStateWithHSet = async (
 
               if (value) {
                 data[id] = (
-                  type === 'app-state-sync-key'
-                    ? proto.Message.AppStateSyncKeyData.fromObject(
-                        value as object
-                      )
-                    : value
+                  type === 'app-state-sync-key' ? proto.Message.AppStateSyncKeyData.fromObject(value as object) : value
                 ) as SignalDataTypeMap[typeof type]
               }
             })
@@ -178,13 +170,13 @@ export const useRedisAuthStateWithHSet = async (
           }
 
           await Promise.all(promises)
-        }
-      }
+        },
+      },
     },
     saveCreds: async () => {
       await writeData('creds', creds)
     },
-    redis
+    redis,
   }
 }
 
@@ -217,11 +209,7 @@ export const useRedisAuthStateWithHSet = async (
  *
  * @see {@link useRedisAuthStateWithHSet} for the corresponding storage function
  */
-export const deleteHSetKeys = async ({
-  redis,
-  sessionId,
-  logger
-}: IDeleteHSetKeyOptions): Promise<void> => {
+export const deleteHSetKeys = async ({redis, sessionId, logger}: IDeleteHSetKeyOptions): Promise<void> => {
   try {
     logger?.('Removing auth state for session:', sessionId)
     await redis.del(createKey('auth', sessionId))
@@ -280,10 +268,7 @@ export const useRedisAuthState = async (
   })
 
   const writeData = async (key: string, data: unknown): Promise<void> => {
-    await redis.set(
-      createKey(key, sessionId),
-      JSON.stringify(data, BufferJSON.replacer)
-    )
+    await redis.set(createKey(key, sessionId), JSON.stringify(data, BufferJSON.replacer))
   }
 
   const readData = async (key: string): Promise<unknown> => {
@@ -295,8 +280,7 @@ export const useRedisAuthState = async (
     await redis.del(createKey(key, sessionId))
   }
 
-  const creds: AuthenticationCreds =
-    ((await readData('creds')) as AuthenticationCreds) ?? initAuthCreds()
+  const creds: AuthenticationCreds = ((await readData('creds')) as AuthenticationCreds) ?? initAuthCreds()
 
   return {
     state: {
@@ -312,11 +296,7 @@ export const useRedisAuthState = async (
 
               if (value) {
                 data[id] = (
-                  type === 'app-state-sync-key'
-                    ? proto.Message.AppStateSyncKeyData.fromObject(
-                        value as object
-                      )
-                    : value
+                  type === 'app-state-sync-key' ? proto.Message.AppStateSyncKeyData.fromObject(value as object) : value
                 ) as SignalDataTypeMap[typeof type]
               }
             })
@@ -341,13 +321,13 @@ export const useRedisAuthState = async (
           }
 
           await Promise.all(promises)
-        }
-      }
+        },
+      },
     },
     saveCreds: async () => {
       await writeData('creds', creds)
     },
-    redis
+    redis,
   }
 }
 
@@ -382,23 +362,13 @@ export const useRedisAuthState = async (
  * @see {@link useRedisAuthState} for the corresponding storage function
  * @see {@link deleteHSetKeys} for Hash-based storage cleanup
  */
-export const deleteKeysWithPattern = async ({
-  redis,
-  sessionId,
-  logger
-}: IDeleteKeysOptions): Promise<void> => {
+export const deleteKeysWithPattern = async ({redis, sessionId, logger}: IDeleteKeysOptions): Promise<void> => {
   try {
     const pattern = `${sessionId}:*`
     logger?.('Removing auth state for session:', sessionId)
     let cursor = 0
     do {
-      const [nextCursor, keys] = await redis.scan(
-        cursor,
-        'MATCH',
-        pattern,
-        'COUNT',
-        100
-      )
+      const [nextCursor, keys] = await redis.scan(cursor, 'MATCH', pattern, 'COUNT', 100)
       cursor = Number.parseInt(nextCursor, 10)
       if (keys.length > 0) {
         await redis.unlink(...keys)
@@ -438,10 +408,7 @@ export const deleteKeysWithPattern = async ({
  * @see {@link useRedisAuthStateWithHSet} for the corresponding storage function
  * @see {@link listSessions} for key-value based session listing
  */
-export const listHSetSessions = async ({
-  redis,
-  logger
-}: IListSessionsOptions): Promise<string[]> => {
+export const listHSetSessions = async ({redis, logger}: IListSessionsOptions): Promise<string[]> => {
   try {
     const sessions: string[] = []
     let cursor = 0
@@ -449,13 +416,7 @@ export const listHSetSessions = async ({
     logger?.('Scanning for Hash-based sessions...')
 
     do {
-      const [nextCursor, keys] = await redis.scan(
-        cursor,
-        'MATCH',
-        '*:auth',
-        'COUNT',
-        100
-      )
+      const [nextCursor, keys] = await redis.scan(cursor, 'MATCH', '*:auth', 'COUNT', 100)
       cursor = Number.parseInt(nextCursor, 10)
 
       for (const key of keys) {
@@ -502,10 +463,7 @@ export const listHSetSessions = async ({
  * @see {@link useRedisAuthState} for the corresponding storage function
  * @see {@link listHSetSessions} for Hash-based session listing
  */
-export const listSessions = async ({
-  redis,
-  logger
-}: IListSessionsOptions): Promise<string[]> => {
+export const listSessions = async ({redis, logger}: IListSessionsOptions): Promise<string[]> => {
   try {
     const sessionsSet = new Set<string>()
     let cursor = 0
@@ -513,13 +471,7 @@ export const listSessions = async ({
     logger?.('Scanning for key-value based sessions...')
 
     do {
-      const [nextCursor, keys] = await redis.scan(
-        cursor,
-        'MATCH',
-        '*:creds',
-        'COUNT',
-        100
-      )
+      const [nextCursor, keys] = await redis.scan(cursor, 'MATCH', '*:creds', 'COUNT', 100)
       cursor = Number.parseInt(nextCursor, 10)
 
       for (const key of keys) {
