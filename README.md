@@ -1,10 +1,14 @@
 # baileys-redis-auth
 
-✅ **Baileys v7.0.0-rc.6 Compatible** - Fixes critical serialization bugs
+✅ **Baileys v7.0.0-rc.9 Compatible** - aligned with current latest npm release
 
 `baileys-redis-auth` is a library designed to seamlessly integrate Redis as an authentication state storage solution for [Baileys](https://github.com/WhiskeySockets/Baileys), the powerful WhatsApp Web API library. By leveraging Redis, this module allows you to persist Baileys sessions, enabling your application to resume connections without needing to re-scan QR codes frequently. This is particularly useful for applications requiring robust and scalable session management.
 
 This library provides flexible ways to store authentication data in Redis, using either simple key-value pairs or Redis Hashes for optimized storage.
+
+## NPM Package
+
+- Package page: https://www.npmjs.com/package/baileys-redis-auth
 
 ## Prerequisites
 
@@ -322,7 +326,7 @@ manageAllSessions().catch(console.error)
 
 ```typescript
 import { deleteKeysWithPattern, useRedisAuthState } from 'baileys-redis-auth'
-import makeWASocket, { DisconnectReason } from '@whiskeysockets/baileys'
+import makeWASocket, { DisconnectReason } from 'baileys'
 import type { Boom } from '@hapi/boom'
 
 const sessionId = 'my-session'
@@ -399,7 +403,7 @@ This project includes an example script to demonstrate the usage of `baileys-red
     # bun run example
     ```
 
-    This command executes `ts-node -r tsconfig-paths/register example/example.ts`.
+    This command executes `tsx example/example.ts`.
     The example will guide you through connecting to WhatsApp using Baileys with Redis for authentication storage. You'll see a QR code in your terminal to scan with WhatsApp.
 
     **Interactive Commands:**

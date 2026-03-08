@@ -1,6 +1,6 @@
 {
   "name": "baileys-redis-auth",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Redis Auth for Baileys",
   "author": "heriyanto binduni <hbinduni@gmail.com>",
   "license": "MIT",
@@ -60,7 +60,7 @@
     "ioredis": "^5.8.2"
   },
   "peerDependencies": {
-    "baileys": ">=7.0.0-rc.1"
+    "baileys": ">=7.0.0-rc.9"
   },
   "peerDependenciesMeta": {
     "baileys": {

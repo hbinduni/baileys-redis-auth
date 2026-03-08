@@ -70,6 +70,46 @@ const fixFileName = (file: string) => file.replace(/\//g, '__').replace(/:/g, '-
 const createKey = (key: string, sessionId: string) => `${sessionId}:${key}`
 
 /**
+ * Converts stored app-state key data to the runtime proto format.
+ * Supports both `fromObject` and `create` to stay compatible across Baileys updates.
+ */
+const deserializeAppStateSyncKey = (value: unknown): proto.Message.IAppStateSyncKeyData => {
+  const appStateSyncKeyData = proto.Message.AppStateSyncKeyData as unknown as {
+    create?: (object: object) => proto.Message.IAppStateSyncKeyData
+    fromObject?: (object: object) => proto.Message.IAppStateSyncKeyData
+  }
+
+  if (typeof appStateSyncKeyData.fromObject === 'function') {
+    return appStateSyncKeyData.fromObject(value as object)
+  }
+
+  if (typeof appStateSyncKeyData.create === 'function') {
+    return appStateSyncKeyData.create(value as object)
+  }
+
+  return value as proto.Message.IAppStateSyncKeyData
+}
+
+/**
+ * Deletes all keys that match a Redis pattern using SCAN + UNLINK.
+ */
+const deleteKeysByPattern = async (
+  redis: RedisClient,
+  pattern: string,
+  logger?: (message: string, ...args: unknown[]) => void
+): Promise<void> => {
+  let cursor = 0
+  do {
+    const [nextCursor, keys] = await redis.scan(cursor, 'MATCH', pattern, 'COUNT', 100)
+    cursor = Number.parseInt(nextCursor, 10)
+    if (keys.length > 0) {
+      await redis.unlink(...keys)
+      logger?.(`Deleted ${keys.length} keys matching pattern: ${pattern}`)
+    }
+  } while (cursor !== 0)
+}
+
+/**
  * Redis-based authentication state storage using Hash (HSET) - Recommended
  *
  * Stores all authentication data in a single Redis Hash per session.
@@ -145,7 +185,7 @@ export const useRedisAuthStateWithHSet = async (
 
               if (value) {
                 data[id] = (
-                  type === 'app-state-sync-key' ? proto.Message.AppStateSyncKeyData.fromObject(value as object) : value
+                  type === 'app-state-sync-key' ? deserializeAppStateSyncKey(value) : value
                 ) as SignalDataTypeMap[typeof type]
               }
             })
@@ -170,6 +210,9 @@ export const useRedisAuthStateWithHSet = async (
           }
 
           await Promise.all(promises)
+        },
+        clear: async () => {
+          await redis.del(createKey('auth', sessionId))
         },
       },
     },
@@ -296,7 +339,7 @@ export const useRedisAuthState = async (
 
               if (value) {
                 data[id] = (
-                  type === 'app-state-sync-key' ? proto.Message.AppStateSyncKeyData.fromObject(value as object) : value
+                  type === 'app-state-sync-key' ? deserializeAppStateSyncKey(value) : value
                 ) as SignalDataTypeMap[typeof type]
               }
             })
@@ -321,6 +364,9 @@ export const useRedisAuthState = async (
           }
 
           await Promise.all(promises)
+        },
+        clear: async () => {
+          await deleteKeysByPattern(redis, `${sessionId}:*`, logger)
         },
       },
     },
@@ -366,15 +412,7 @@ export const deleteKeysWithPattern = async ({redis, sessionId, logger}: IDeleteK
   try {
     const pattern = `${sessionId}:*`
     logger?.('Removing auth state for session:', sessionId)
-    let cursor = 0
-    do {
-      const [nextCursor, keys] = await redis.scan(cursor, 'MATCH', pattern, 'COUNT', 100)
-      cursor = Number.parseInt(nextCursor, 10)
-      if (keys.length > 0) {
-        await redis.unlink(...keys)
-        logger?.(`Deleted ${keys.length} keys for session: ${sessionId}`)
-      }
-    } while (cursor !== 0)
+    await deleteKeysByPattern(redis, pattern, logger)
   } catch (err) {
     const error = err as Error
     logger?.('Error deleting session:', error.message)

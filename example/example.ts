@@ -165,7 +165,7 @@ async function startSock() {
       } else {
         // Intentional logout - clean up session
         console.log('🔓 Cleaning up session...')
-        await deleteKeysWithPattern({redis, pattern: `${sessionPrefix}:*`, logger: console.log})
+        await deleteKeysWithPattern({redis, sessionId: sessionPrefix, logger: console.log})
         console.log('✅ Session cleaned up successfully.')
         isAuthenticated = false
         rl.prompt()

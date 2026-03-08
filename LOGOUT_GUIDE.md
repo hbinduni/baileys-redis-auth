@@ -22,7 +22,7 @@ Your application MUST manually clear the Redis session when it detects a logout.
 
 ```typescript
 import {deleteKeysWithPattern, useRedisAuthState} from 'baileys-redis-auth'
-import {DisconnectReason} from '@whiskeysockets/baileys'
+import {DisconnectReason} from 'baileys'
 
 const {state, saveCreds, redis} = await useRedisAuthState(redisOptions, 'my-session')
 
@@ -36,7 +36,7 @@ sock.ev.on('connection.update', async (update) => {
       // User logged out - clear the session
       await deleteKeysWithPattern({
         redis,
-        pattern: 'my-session:*',  // Must match your session prefix
+        sessionId: 'my-session',  // Must match your session prefix
         logger: console.log        // Optional: pass logger for debugging
       })
       console.log('Session cleared after logout')
@@ -76,7 +76,7 @@ sock.ev.on('connection.update', async (update) => {
       // Clear HSet-based session
       await deleteHSetKeys({
         redis,
-        key: 'my-session',
+        sessionId: 'my-session',
         logger: console.log  // Optional: pass logger for debugging
       })
       console.log('Session cleared after logout')
@@ -89,7 +89,7 @@ sock.ev.on('connection.update', async (update) => {
 
 ```typescript
 import {deleteKeysWithPattern, useRedisAuthState} from 'baileys-redis-auth'
-import makeWASocket, {DisconnectReason} from '@whiskeysockets/baileys'
+import makeWASocket, {DisconnectReason} from 'baileys'
 import type {Boom} from '@hapi/boom'
 
 async function startWhatsApp() {
@@ -119,7 +119,7 @@ async function startWhatsApp() {
         // THIS IS CRITICAL: Clear Redis session on logout
         await deleteKeysWithPattern({
           redis,
-          pattern: `${sessionPrefix}:*`,
+          sessionId: sessionPrefix,
           logger: console.log  // Optional: pass logger for debugging
         })
         console.log('✅ Session cleared successfully')
@@ -164,7 +164,7 @@ await sock.logout()
 
 ```typescript
 await sock.logout()
-await deleteKeysWithPattern({redis, pattern: 'session:*'})
+await deleteKeysWithPattern({redis, sessionId: 'session'})
 // Race condition - might clear before logout message is sent
 ```
 
@@ -173,7 +173,7 @@ await deleteKeysWithPattern({redis, pattern: 'session:*'})
 ```typescript
 sock.ev.on('connection.update', async (update) => {
   if (connection === 'close' && statusCode === DisconnectReason.loggedOut) {
-    await deleteKeysWithPattern({redis, pattern: 'session:*'})
+    await deleteKeysWithPattern({redis, sessionId: 'session'})
   }
 })
 
@@ -188,7 +188,7 @@ await sock.logout() // Cleanup happens automatically
 ```typescript
 deleteKeysWithPattern({
   redis: RedisClient,    // Redis client from useRedisAuthState
-  pattern: string,       // Pattern to match (e.g., 'session:*')
+  sessionId: string,     // Session ID (e.g., 'session')
   logger?: (message: string, ...args: unknown[]) => void  // Optional logger function
 }): Promise<void>
 ```
@@ -198,7 +198,7 @@ deleteKeysWithPattern({
 ```typescript
 deleteHSetKeys({
   redis: RedisClient,    // Redis client from useRedisAuthStateWithHSet
-  key: string,          // Session prefix (e.g., 'session')
+  sessionId: string,    // Session prefix (e.g., 'session')
   logger?: (message: string, ...args: unknown[]) => void  // Optional logger function
 }): Promise<void>
 ```
