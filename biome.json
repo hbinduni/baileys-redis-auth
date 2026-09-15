@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.2.5/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.5.13/schema.json",
   "vcs": {
     "enabled": true,
     "clientKind": "git",
@@ -8,7 +8,7 @@
   "files": {
     "ignoreUnknown": false,
     "maxSize": 2097152,
-    "ignore": ["lib", "node_modules", "*.json"]
+    "includes": ["**", "!**/lib", "!**/node_modules", "!**/*.json"]
   },
   "formatter": {
     "enabled": true,
@@ -34,7 +34,7 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true,
+      "preset": "recommended",
       "correctness": {
         "noUnusedImports": "error",
         "useImportExtensions": "off"
@@ -50,18 +50,16 @@
       }
     }
   },
-  "organizeImports": {
-    "enabled": true
-  },
+  "assist": { "actions": { "source": { "organizeImports": "on" } } },
   "overrides": [
     {
-      "include": ["**/temp/**"],
+      "includes": ["**/temp/**"],
       "linter": {
         "enabled": false
       }
     },
     {
-      "include": ["**/tests/**", "**/*.test.ts"],
+      "includes": ["**/tests/**", "**/*.test.ts"],
       "linter": {
         "rules": {
           "suspicious": {

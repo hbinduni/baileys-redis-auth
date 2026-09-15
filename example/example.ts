@@ -91,7 +91,7 @@ rl.on('line', async (line: string) => {
         console.log('🔓 Logging out...')
         try {
           await sock.logout()
-        } catch (error) {
+        } catch {
           // Logout throws "Intentional Logout" error - this is expected behavior
         }
         console.log('✅ Logged out successfully!')

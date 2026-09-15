@@ -2,9 +2,9 @@ import {
   type AuthenticationCreds,
   type AuthenticationState,
   BufferJSON,
-  type SignalDataTypeMap,
   initAuthCreds,
   proto,
+  type SignalDataTypeMap,
 } from 'baileys'
 import {Redis, type RedisOptions} from 'ioredis'
 

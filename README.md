@@ -1,6 +1,6 @@
 # baileys-redis-auth
 
-✅ **Baileys v7.0.0-rc.9 Compatible** - aligned with current latest npm release
+**Baileys v7.0.0-rc14 compatible** (release candidate).
 
 `baileys-redis-auth` is a library designed to seamlessly integrate Redis as an authentication state storage solution for [Baileys](https://github.com/WhiskeySockets/Baileys), the powerful WhatsApp Web API library. By leveraging Redis, this module allows you to persist Baileys sessions, enabling your application to resume connections without needing to re-scan QR codes frequently. This is particularly useful for applications requiring robust and scalable session management.
 
@@ -14,14 +14,21 @@ This library provides flexible ways to store authentication data in Redis, using
 
 Before using `baileys-redis-auth`, ensure you have the following installed and configured:
 
-- **Node.js:** Version 18.x or higher is recommended.
+- **Node.js:** Version 20 or higher is required by Baileys and ioredis.
 - **Redis:** A running Redis server instance. You'll need its connection details (host, port, password if any).
-- **Baileys:** This library is an auth handler for Baileys, so you should have Baileys as part of your project.
+- **Baileys:** Install `baileys@^7.0.0-rc14` alongside this library.
+
+## Upgrading to 3.0.0
+
+Version 3 requires Node.js 20+ and `baileys@^7.0.0-rc14`.
+It uses ioredis 6, which defaults to RESP3 and falls back to RESP2 for older Redis servers.
+Pass `protocol: 2` in `redisOptions` if your Redis deployment requires RESP2 explicitly.
+See the [ioredis 6 release notes](https://github.com/redis/ioredis/releases/tag/v6.0.0).
 
 ## Installation
 
 ```bash
-npm install baileys-redis-auth
+bun add baileys-redis-auth baileys@^7.0.0-rc14
 ```
 
 ## Usage
@@ -377,11 +384,7 @@ This project includes an example script to demonstrate the usage of `baileys-red
 2.  **Install dependencies:**
 
     ```bash
-    npm install
-    # or
-    # pnpm install
-    # or
-    # yarn install
+    bun install --frozen-lockfile
     ```
 
 3.  **Ensure you have a Redis server running** and accessible on `localhost:6379` (or update the example script with your Redis configuration).
@@ -396,11 +399,7 @@ This project includes an example script to demonstrate the usage of `baileys-red
 5.  **Run the example script:**
 
     ```bash
-    npm run example
-    # or
-    # pnpm example
-    # or
-    # bun run example
+    bun run example
     ```
 
     This command executes `tsx example/example.ts`.
