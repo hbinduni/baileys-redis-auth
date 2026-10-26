@@ -1,0 +1,29 @@
+name: Dependency security
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '17 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bun-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.4.4'
+      - name: Verify the committed dependency graph
+        run: bun --no-env-file install --frozen-lockfile --ignore-scripts
+      # Audit the committed dependency graph without executing package scripts.
+      - name: Audit production and development dependencies
+        run: bun --no-env-file audit

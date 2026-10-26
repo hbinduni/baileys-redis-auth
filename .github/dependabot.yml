@@ -1,0 +1,21 @@
+# Version updates are separate from the vulnerability scans. Major upgrades remain individual PRs.
+version: 2
+updates:
+  - package-ecosystem: "bun"
+    directories:
+      - "/"
+    schedule:
+      interval: weekly
+    groups:
+      compatible-updates:
+        patterns: ["*"]
+        update-types: [minor, patch]
+  - package-ecosystem: "github-actions"
+    directories:
+      - "/"
+    schedule:
+      interval: weekly
+    groups:
+      compatible-updates:
+        patterns: ["*"]
+        update-types: [minor, patch]
