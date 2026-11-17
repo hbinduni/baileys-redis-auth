@@ -2,6 +2,7 @@
 version: 2
 updates:
   - package-ecosystem: "bun"
+    open-pull-requests-limit: 0
     directories:
       - "/"
     schedule:
@@ -11,6 +12,7 @@ updates:
         patterns: ["*"]
         update-types: [minor, patch]
   - package-ecosystem: "github-actions"
+    open-pull-requests-limit: 0
     directories:
       - "/"
     schedule:
